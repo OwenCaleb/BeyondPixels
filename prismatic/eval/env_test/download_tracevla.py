@@ -44,21 +44,40 @@
 # ~/.cache/huggingface/hub
 # '''
 
-
-# Load Processor & VLA
-from transformers import AutoModelForCausalLM , AutoProcessor
-from PIL import Image
-import json
+#!/usr/bin/env python
 import torch
-model_path = "furonghuang-lab/tracevla_phi3v"
-processor = AutoProcessor.from_pretrained(
-    model_path, trust_remote_code=True, num_crops=1
-)
+from transformers import AutoProcessor, AutoModelForCausalLM
 
-model = AutoModelForCausalLM.from_pretrained(
-    model_path,
-    torch_dtype=torch.bfloat16,
-    trust_remote_code=True,
-    _attn_implementation='flash_attention_2',
-    use_cache=False
-).cuda()
+def main():
+    model_path = "furonghuang-lab/tracevla_phi3v"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"[TraceVLA] Using device: {device}")
+
+    # 1. Processor / tokenizer（已经没问题了）
+    processor = AutoProcessor.from_pretrained(
+        model_path,
+        trust_remote_code=True,
+        num_crops=1,
+    )
+
+    # 2. dtype 选择
+    if device == "cuda" and torch.cuda.is_bf16_supported():
+        dtype = torch.bfloat16
+    elif device == "cuda":
+        dtype = torch.float16
+    else:
+        dtype = torch.float32
+
+    # 3. 用 AutoModelForCausalLM + trust_remote_code 加载模型
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=dtype,                      # 新版用 dtype，而不是 torch_dtype
+        trust_remote_code=True,           # 关键：用仓库里的 modeling_phi3_v.py
+        attn_implementation="flash_attention_2",
+    ).to(device)
+
+    model.eval()
+    print(f"[TraceVLA] Model & processor loaded OK. dtype={dtype}, device={device}")
+
+if __name__ == "__main__":
+    main()
