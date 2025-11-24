@@ -257,3 +257,13 @@ if __name__ == "__main__":
     parser = build_argparser()
     args = parser.parse_args()
     run(args)
+
+'''
+python test_tracevla_simpler.py \
+  --dataset_stats_path /path/to/dataset_stats.json \
+  --cotracker_ckpt /path/to/scaled_offline.pth \
+  --env_name widowx_bridge_pick_coke_can \
+  --policy_setup widowx_bridge \
+  --model_path furonghuang-lab/tracevla_7b \
+  --device cuda:0
+''' 
