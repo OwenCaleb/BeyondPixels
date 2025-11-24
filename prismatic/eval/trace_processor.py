@@ -3,7 +3,7 @@ import torch
 from typing import List, Tuple
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
-from collections import deque
+from collections import deque 
 from cotracker.predictor import CoTrackerPredictor
 import os
 

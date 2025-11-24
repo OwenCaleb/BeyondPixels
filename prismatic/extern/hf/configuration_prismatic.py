@@ -77,7 +77,7 @@ class PrismaticConfig(PretrainedConfig):
         self,
         vision_backbone_id: str = "siglip-vit-so400m",
         llm_backbone_id: str = "vicuna-v15-7b",
-        arch_specifier: str = "no-align+gelu-mlp",
+        arch_specifier: str = "no-align+gelu-mlp",#这个多模态模型不用单独的对齐阶段（no-align），直接用一个带 GELU 激活的 MLP projector 做视觉→语言的映射（gelu-mlp），然后整体一起微调。
         use_fused_vision_backbone: Optional[bool] = None,
         image_resize_strategy: str = "letterbox",
         text_config: Optional[Dict[str, Any]] = None,

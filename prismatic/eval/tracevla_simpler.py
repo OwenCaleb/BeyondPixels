@@ -14,9 +14,11 @@ def resize_image(img, resize_size):
     """
     Takes numpy array corresponding to a single image and returns resized image as numpy array.
     Using tf resize corresponding to RLDS resize.
+    严格意义上的缩放（rescale/resize）
     """
     assert isinstance(resize_size, tuple)
     # Resize to image size expected by model
+    # 用 TF：是为了复刻 RLDS / Bridge/Fractal 的 原始图像预处理逻辑，保证训练/推理分布一致。
     img = tf.image.encode_jpeg(img)  # Encode as JPEG, as done in RLDS dataset builder
     img = tf.io.decode_image(img, expand_animations=False, dtype=tf.uint8)  # Immediately decode back
     img = tf.image.resize(img, resize_size, method="lanczos3", antialias=True)
@@ -35,9 +37,9 @@ class TraceVLAInference:
         model_path,
         cotracker_model_path,
         dataset_stats_path,
-        action_scale: float = 1.0,
+        action_scale: float = 1.0,#虽然方向对，但幅度和速度必须额外限制（这就是 action_scale）。
         n_action_bins: int = 256,
-        sample: bool = False,
+        sample: bool = False,# sample=False 只能输出一个“平均动作”往往是错误的（平均可能是撞上物体）sample=True 可以根据分布采样多个候选动作让策略具有“多种可行路径”；分桶和连续都可以采样
         temperature: float = 0.0,
         image_aug: bool = False,
         model_dtype: str = None,  # in ["bfloat16", "float16", "float32", None]; None will read from the model config
@@ -48,7 +50,7 @@ class TraceVLAInference:
         self.processor = AutoProcessor.from_pretrained(
             model_path,
             trust_remote_code=True,
-            center_crop=False
+            center_crop=False #遇到长宽比不一致的图像，会先从中心裁成接近目标比例
         )
         self.vla = AutoModelForVision2Seq.from_pretrained(
             model_path,
@@ -65,7 +67,7 @@ class TraceVLAInference:
         from cotracker.predictor import CoTrackerPredictor
         self.cotracker_model = CoTrackerPredictor(
             checkpoint=os.path.join(
-                '/mnt/amlfs-01/home/ruijiez/co-tracker/checkpoints/scaled_offline.pth'
+                '/home/liwenbo/projects/Robotic_Manipulation/VLA/Tools/co-tracker/checkpoints/scaled_offline.pth'
                 )
         ).to(device)
             
@@ -80,6 +82,10 @@ class TraceVLAInference:
         self.gripper_action_repeats = [0]
         self.sticky_gripper_actions = [0.0]
         self.previous_gripper_actions = [None]
+        '''
+           防止模型在阈值附近抖动导致夹爪“啵啵啵”乱开合；
+           让开/合切换具有惯性和确认机制（例如需要连续若干步同意图才触发），稳定真实机器人行为。
+        '''
 
     def start(self, num_envs: int):
         self.num_envs = num_envs
@@ -129,14 +135,14 @@ class TraceVLAInference:
             self.previous_gripper_actions[idx] = None
             self.task_descriptions[idx] = task_description
             
-            self.trace_processors = []
-            for i in range(len(policy_setups)):
-                self.trace_processor = TraceProcessor(cotracker_model=self.cotracker_model_path, 
-                                                      window_size=15 if policy_setups[i] == 'google_robot' else 10,
-                                                      device=self.vla.device,
-                                                     )
-                self.trace_processor.reset()
-                self.trace_processors.append(self.trace_processor)
+        self.trace_processors = []
+        for i in range(len(policy_setups)):
+            self.trace_processor = TraceProcessor(cotracker_model_path=self.cotracker_model_path, 
+                                                    window_size=15 if policy_setups[i] == 'google_robot' else 10,
+                                                    device=self.vla.device,
+                                                    )
+            self.trace_processor.reset()
+            self.trace_processors.append(self.trace_processor)
 
     def reset_states_at(self, idx, task_description):
         assert idx < self.num_envs, f"{idx=}, {self.num_envs=}"
