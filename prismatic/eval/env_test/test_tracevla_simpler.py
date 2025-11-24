@@ -28,7 +28,7 @@ from simpler_env.utils.env.observation_utils import (
 
 # 这行根据你实际文件名修改：
 # 比如你是 prismatic/eval/tracevla_policy.py 里面定义的 TraceVLAInference
-from prismatic.eval.tracevla_inference import TraceVLAInference
+from ../tracevla_inference import TraceVLAInference
 
 
 def action_dict_to_vec(action: Dict[str, np.ndarray]) -> np.ndarray:
@@ -257,3 +257,14 @@ if __name__ == "__main__":
     parser = build_argparser()
     args = parser.parse_args()
     run(args)
+
+'''
+python test_tracevla_simpler.py \
+  --dataset_stats_path /path/to/dataset_stats.json \
+  --cotracker_ckpt /home/liwenbo/projects/Robotic_Manipulation/VLA/Tools/co-tracker/checkpoints/scaled_offline.pth \
+  --env_name widowx_bridge_pick_coke_can \
+  --policy_setup widowx_bridge \
+  --model_path furonghuang-lab/tracevla_7b \
+  --device cuda:0
+
+'''
