@@ -3,6 +3,28 @@ processing_prismatic.py
 
 HuggingFace-style preprocessor definitions for Prismatic VLMs, inheriting from `ProcessorMixin`. Default configuration
 specifies `siglip-224px+7b`.
+
+原始图片 (PIL.Image)
+   ↓ ① 处理
+processing_prismatic.PrismaticImageProcessor
+   → 输出 pixel_values: torch.Tensor [B, C, H, W] 或 [B, 2*C, H, W]
+
+文字 (str)
+   ↓ ① tokenizer
+   → input_ids, attention_mask
+
+   ↓ ② 喂给模型
+modeling_prismatic.PrismaticForConditionalGeneration(
+    input_ids=..., pixel_values=...
+)
+
+  在模型里面：
+      pixel_values → PrismaticVisionBackbone → patch_features
+      patch_features → PrismaticProjector → projected_patch_embeddings
+      再和 text embeddings 拼在一起 → LLM → logits / actions
+
+      
+TraceVLA 的改进点在于：预处理阶段就已经把输入组织成“时间序列”，为后面的多帧 trace 编码做铺垫；OpenVLA 只处理单帧。
 """
 
 from typing import Any, ClassVar, List, Optional, Tuple, Union

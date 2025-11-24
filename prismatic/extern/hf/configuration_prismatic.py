@@ -3,6 +3,9 @@ configuration_prismatic.py
 
 HuggingFace-style configuration definition for Prismatic VLMs, inheriting from `transformers.PretrainedConfig`.
 Default configuration specifies `siglip-224px+7b`.
+
+Config 不动：骨架结构保持 OpenVLA 一致；
+TraceVLA 主要是往“怎么处理图像/trace、怎么前向计算”上加东西。
 """
 
 from typing import Any, Dict, List, Optional

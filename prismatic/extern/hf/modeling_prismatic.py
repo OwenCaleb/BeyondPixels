@@ -60,6 +60,7 @@ def ls_apply_patch(ls_module: LayerScale):
 
 
 # === Prismatic Vision Backbone (nn.Module) Definitions (w/ Fused Backbone Support) ===
+
 class PrismaticVisionBackbone(nn.Module):
     def __init__(
         self,
@@ -141,6 +142,8 @@ class PrismaticVisionBackbone(nn.Module):
 
 
 # === Prismatic Projector (nn.Module) Definitions ===
+# 两个视觉模型输出的 patch，需要更复杂的“融合 + 翻译”，
+# 所以 projector 会更深，让它能更好地把特征混在一起。
 class PrismaticProjector(nn.Module):
     def __init__(self, use_fused_vision_backbone: bool, vision_dim: int, llm_dim: int) -> None:
         super().__init__()
@@ -176,6 +179,7 @@ class PrismaticProjector(nn.Module):
 
 
 # === Main HF Class Definitions ===
+# 模型每次跑完 forward，要打包哪些东西当作结果返回
 @dataclass
 class PrismaticCausalLMOutputWithPast(ModelOutput):
     """Base class for Prismatic casual (visually-conditioned) language model outputs; also exposes visual features."""
@@ -189,7 +193,19 @@ class PrismaticCausalLMOutputWithPast(ModelOutput):
     # Additions for VLMs
     projector_features: Optional[torch.FloatTensor] = None
 
+'''
+奶奶：PrismaticPreTrainedModel
 
+负责“家族的基本规则”：我们的脑子是什么、支不支持某种技能。
+
+妈妈：PrismaticForConditionalGeneration
+
+在奶奶的基础上，学会“连贯说话、接着上句话继续说”的能力。
+
+孙女：OpenVLAForActionPrediction
+
+在妈妈基础上，再加一层“把话翻译成机器人动作”的能力。
+'''
 class PrismaticPreTrainedModel(PreTrainedModel):
     config_class: PretrainedConfig = PrismaticConfig
     base_model_prefix: str = "model"
@@ -581,3 +597,22 @@ class OpenVLAForActionPrediction(PrismaticForConditionalGeneration):
         """Get all the logged statistics for the given dataset."""
         unnorm_key = self._check_unnorm_key(self.norm_stats, unnorm_key)
         return self.norm_stats[unnorm_key]["action"]
+
+'''
+PROMPT → input_ids → 加 token 29871 → generate()
+
+生成 tokens:
+[31912, 31890, 31980, 31810]
+
+↓
+映射 bin index:
+[87, 109, 19, 189]
+
+↓
+查 bin_centers：
+[-0.32, 0.05, -0.85, 0.48]   ← normalized ([-1,1])
+
+↓
+反归一化（根据训练数据 q01-q99）
+[-0.16, 0.05, 0.075, 0.644]  ← 真实动作值
+'''
